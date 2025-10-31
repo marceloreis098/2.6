@@ -76,17 +76,7 @@ Antes de configurar o banco de dados ou o servidor, você precisa obter os arqui
     EXIT;
     ```
     
-### Passo 2: Configuração do Firewall (UFW)
-
-1.  **Adicione as Regras e Habilite:**
-    ```bash
-    sudo ufw allow ssh          # Permite acesso SSH
-    sudo ufw allow 3000/tcp     # Permite acesso ao Frontend
-    sudo ufw allow 3001/tcp     # Permite acesso à API
-    sudo ufw enable
-    ```
-
-### Passo 3: Configuração do Backend (API)
+### Passo 2: Configuração do Backend (API)
 
 1.  **Instale o Node.js (se não tiver):**
     ```bash
@@ -119,7 +109,7 @@ Antes de configurar o banco de dados ou o servidor, você precisa obter os arqui
     BCRYPT_SALT_ROUNDS=10
     ```
 
-### Passo 4: Configuração do Frontend
+### Passo 3: Configuração do Frontend
 
 1.  **Instale `serve` e `pm2` globalmente:**
     ```bash
@@ -140,9 +130,97 @@ Antes de configurar o banco de dados ou o servidor, você precisa obter os arqui
     npm run build
     ```
 
+### Passo 4: Configuração do Servidor Web (Nginx) e HTTPS (Novo Padrão)
+
+Este passo configura o Nginx como um reverse proxy. Ele receberá o tráfego da internet (HTTPS) e o direcionará para as suas aplicações (frontend e backend) que estão rodando localmente. Isso elimina a necessidade de usar números de porta no navegador (`:3000`).
+
+**Pré-requisito:** Você deve ter um nome de domínio (ex: `inventario.suaempresa.com`) apontando para o endereço IP público do seu servidor.
+
+1.  **Instale o Nginx:**
+    ```bash
+    sudo apt update
+    sudo apt install nginx
+    ```
+
+2.  **Ajuste o Firewall (UFW):**
+    Permita o tráfego para o Nginx e remova as regras antigas para as portas 3000 e 3001 para maior segurança.
+    ```bash
+    sudo ufw allow ssh          # Garante o acesso SSH
+    sudo ufw allow 'Nginx Full' # Permite tráfego nas portas 80 (HTTP) e 443 (HTTPS)
+    sudo ufw delete allow 3000/tcp
+    sudo ufw delete allow 3001/tcp
+    sudo ufw enable
+    ```
+
+3.  **Crie o Arquivo de Configuração do Nginx:**
+    Crie um novo arquivo de configuração para o seu site. Substitua `seu-dominio.com` pelo seu domínio real.
+    ```bash
+    sudo nano /etc/nginx/sites-available/seu-dominio.com
+    ```
+    Cole o seguinte conteúdo no arquivo. **Lembre-se de substituir `seu-dominio.com` em todo o arquivo.**
+    ```nginx
+    server {
+        listen 80;
+        server_name seu-dominio.com www.seu-dominio.com;
+
+        location / {
+            # Redireciona todo o tráfego HTTP para HTTPS
+            return 301 https://$host$request_uri;
+        }
+    }
+
+    server {
+        listen 443 ssl;
+        server_name seu-dominio.com www.seu-dominio.com;
+
+        # Os caminhos do certificado SSL serão adicionados pelo Certbot no próximo passo
+        # ssl_certificate /etc/letsencrypt/live/seu-dominio.com/fullchain.pem;
+        # ssl_certificate_key /etc/letsencrypt/live/seu-dominio.com/privkey.pem;
+
+        # Configuração do proxy reverso para o Frontend
+        location / {
+            proxy_pass http://localhost:3000;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection 'upgrade';
+            proxy_set_header Host $host;
+            proxy_cache_bypass $http_upgrade;
+        }
+
+        # Configuração do proxy reverso para a API
+        # Todas as chamadas para /api/ serão enviadas para o backend
+        location /api/ {
+            proxy_pass http://localhost:3001/;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        }
+    }
+    ```
+
+4.  **Habilite a Configuração:**
+    ```bash
+    sudo ln -s /etc/nginx/sites-available/seu-dominio.com /etc/nginx/sites-enabled/
+    sudo nginx -t # Testa se a sintaxe está correta
+    ```
+
+5.  **Obtenha o Certificado SSL com Certbot:**
+    Certbot automatiza a obtenção de certificados SSL gratuitos da Let's Encrypt.
+    ```bash
+    sudo apt install certbot python3-certbot-nginx
+    # Substitua seu-dominio.com pelo seu domínio
+    sudo certbot --nginx -d seu-dominio.com -d www.seu-dominio.com 
+    ```
+    Siga as instruções na tela. O Certbot irá obter o certificado e modificar seu arquivo de configuração do Nginx automaticamente para usá-lo.
+
+6.  **Reinicie o Nginx:**
+    ```bash
+    sudo systemctl restart nginx
+    ```
+
 ### Passo 5: Executando a Aplicação com PM2
 
-`pm2` irá garantir que a API e o frontend rodem continuamente. Usamos `npx` para garantir que o comando `pm2` seja encontrado.
+`pm2` irá garantir que a API e o frontend rodem continuamente em segundo plano.
 
 1.  **Inicie a API com o PM2:**
     ```bash
@@ -152,7 +230,6 @@ Antes de configurar o banco de dados ou o servidor, você precisa obter os arqui
     ```
 
 2.  **Inicie o Frontend com o PM2:**
-    **Atenção:** O comando abaixo deve ser executado da pasta raiz do projeto.
     ```bash
     # Navegue para a pasta raiz do projeto
     cd /var/www/Inventario
@@ -181,7 +258,9 @@ Antes de configurar o banco de dados ou o servidor, você precisa obter os arqui
 
 ### Passo 6: Acesso à Aplicação
 
-Abra o navegador no endereço do seu servidor Ubuntu, na porta do frontend: `http://<ip-do-servidor>:3000`.
+Abra o navegador e acesse sua aplicação usando seu domínio com HTTPS. Você não precisa mais usar a porta.
+
+**`https://seu-dominio.com`**
 
 A aplicação deve carregar a tela de login. Use as credenciais `admin` / `marceloadmin` para acessar o sistema.
 

@@ -1,7 +1,7 @@
 import { User, Equipment, EquipmentHistory, License, DbStatus, AuditLogEntry } from '../types';
 import LogService from './logService';
 
-const API_BASE_URL = `http://${window.location.hostname}:3001/api`;
+const API_BASE_URL = '/api';
 
 const handleResponse = async (response: Response) => {
     const data = await response.json();
