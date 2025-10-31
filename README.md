@@ -78,10 +78,14 @@ Antes de configurar o banco de dados ou o servidor, você precisa obter os arqui
     
 ### Passo 2: Configuração do Backend (API)
 
-1.  **Instale o Node.js (se não tiver):**
+1.  **Instale o Node.js e o Yarn (se não tiver):**
     ```bash
+    # Instala o Node.js
     curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
     sudo apt-get install -y nodejs
+    
+    # Instala o Yarn globalmente
+    sudo npm install -g yarn
     ```
 
 2.  **Instale as Dependências da API:**
@@ -89,8 +93,8 @@ Antes de configurar o banco de dados ou o servidor, você precisa obter os arqui
     # Navegue até a pasta da API
     cd /var/www/Inventario/inventario-api
     
-    # Instale as dependências (incluindo otplib, bcryptjs e mysql2)
-    npm install
+    # Instale as dependências com Yarn
+    yarn install
     ```
     **Nota:** O servidor da API irá criar as tabelas necessárias no banco de dados automaticamente na primeira vez que for iniciado.
 
@@ -111,23 +115,23 @@ Antes de configurar o banco de dados ou o servidor, você precisa obter os arqui
 
 ### Passo 3: Configuração do Frontend
 
-1.  **Instale `serve` e `pm2` globalmente:**
+1.  **Instale `serve` e `pm2` globalmente com Yarn:**
     ```bash
-    sudo npm install -g serve pm2
+    sudo yarn global add serve pm2
     ```
 
 2.  **Instale as Dependências do Frontend:**
     ```bash
     # Navegue até a pasta raiz do projeto
     cd /var/www/Inventario
-    npm install 
+    yarn install 
     ```
 
 3.  **Compile a Aplicação para Produção:**
     Este passo é crucial. Ele cria uma pasta `dist` com a versão otimizada do site.
     ```bash
     # Certifique-se de estar em /var/www/Inventario
-    npm run build
+    yarn build
     ```
 
 ### Passo 4: Configuração do Servidor Web (Nginx) e HTTPS (Novo Padrão)
@@ -226,7 +230,7 @@ Este passo configura o Nginx como um reverse proxy. Ele receberá o tráfego da 
     ```bash
     # Navegue para a pasta da API
     cd /var/www/Inventario/inventario-api
-    npx pm2 start server.js --name inventario-api
+    pm2 start server.js --name inventario-api
     ```
 
 2.  **Inicie o Frontend com o PM2:**
@@ -235,26 +239,26 @@ Este passo configura o Nginx como um reverse proxy. Ele receberá o tráfego da 
     cd /var/www/Inventario
     
     # O comando serve o conteúdo da pasta de produção 'dist' na porta 3000.
-    npx pm2 start serve --name inventario-frontend -- -s dist -l 3000
+    pm2 start serve --name inventario-frontend -- -s dist -l 3000
     ```
 
 3.  **Configure o PM2 para Iniciar com o Servidor:**
     ```bash
-    npx pm2 startup
+    pm2 startup
     ```
     O comando acima irá gerar um outro comando que você precisa copiar e executar. **Execute o comando que ele fornecer.**
 
 4.  **Salve a Configuração de Processos do PM2:**
     ```bash
-    npx pm2 save
+    pm2 save
     ```
 
 5.  **Gerencie os Processos:**
-    -   Ver status: `npx pm2 list`
-    -   Ver logs da API: `npx pm2 logs inventario-api`
-    -   Ver logs do Frontend: `npx pm2 logs inventario-frontend`
-    -   Reiniciar a API: `npx pm2 restart inventario-api`
-    -   Reiniciar o Frontend: `npx pm2 restart inventario-frontend`
+    -   Ver status: `pm2 list`
+    -   Ver logs da API: `pm2 logs inventario-api`
+    -   Ver logs do Frontend: `pm2 logs inventario-frontend`
+    -   Reiniciar a API: `pm2 restart inventario-api`
+    -   Reiniciar o Frontend: `pm2 restart inventario-frontend`
 
 ### Passo 6: Acesso à Aplicação
 
@@ -272,14 +276,14 @@ A aplicação deve carregar a tela de login. Use as credenciais `admin` / `marce
 
 Para garantir que tanto o frontend quanto o backend iniciem automaticamente sempre que o servidor for reiniciado, siga estes passos. Este processo utiliza o `pm2` para registrar as aplicações como um serviço do sistema.
 
-**Pré-requisito:** Certifique-se de que seus processos (`inventario-api` e `inventario-frontend`) já foram iniciados pelo menos uma vez com o `pm2`, conforme o Passo 5. Você pode verificar com `npx pm2 list`.
+**Pré-requisito:** Certifique-se de que seus processos (`inventario-api` e `inventario-frontend`) já foram iniciados pelo menos uma vez com o `pm2`, conforme o Passo 5. Você pode verificar com `pm2 list`.
 
 #### 1. Gerar o Script de Inicialização
 
 Execute o seguinte comando. O `pm2` irá detectar seu sistema operacional e gerar um comando específico para configurar o serviço de inicialização.
 
 ```bash
-npx pm2 startup
+pm2 startup
 ```
 
 A saída será algo como:
@@ -298,12 +302,12 @@ sudo env PATH=$PATH:/usr/bin /.../pm2 startup systemd -u <seu_usuario> --hp /hom
 Após executar o comando anterior, salve a lista de processos que o `pm2` deve gerenciar. Isso fará com que o `pm2` "lembre" quais aplicações iniciar no boot.
 
 ```bash
-npx pm2 save
+pm2 save
 ```
 
 Pronto! Agora, sempre que o servidor for reiniciado, o `pm2` será iniciado automaticamente e, em seguida, iniciará a `inventario-api` e o `inventario-frontend`.
 
-**Para testar:** Você pode reiniciar o servidor (`sudo reboot`) e, após o reinício, verificar o status com `npx pm2 list`. Ambos os processos devem estar com o status `online`.
+**Para testar:** Você pode reiniciar o servidor (`sudo reboot`) e, após o reinício, verificar o status com `pm2 list`. Ambos os processos devem estar com o status `online`.
 
 ### Atualizando a Aplicação com Git
 
@@ -332,10 +336,10 @@ Após baixar os arquivos, pode ser necessário reinstalar dependências (se o `p
 cd /var/www/Inventario/inventario-api
 
 # Instale quaisquer novas dependências
-npm install
+yarn install
 
 # Reinicie la aplicação com pm2 para aplicar as mudanças
-npx pm2 restart inventario-api
+pm2 restart inventario-api
 ```
 
 **Para o Frontend:**
@@ -345,13 +349,13 @@ npx pm2 restart inventario-api
 cd /var/www/Inventario
 
 # Instale quaisquer novas dependências
-npm install
+yarn install
 
 # Recompile os arquivos do frontend
-npm run build
+yarn build
 
 # Reinicie o servidor do frontend com pm2
-npx pm2 restart inventario-frontend
+pm2 restart inventario-frontend
 ```
 
-Após esses passos, sua aplicação estará atualizada e rodando com a versão mais recente. Verifique os logs com `npx pm2 logs` se encontrar algum problema.
+Após esses passos, sua aplicação estará atualizada e rodando com a versão mais recente. Verifique os logs com `pm2 logs` se encontrar algum problema.
